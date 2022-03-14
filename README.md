@@ -1,7 +1,9 @@
 # Realtime Chats
 
-Node, Express, Sock.io
+Node, Express, Socket.io, qs library
 Bi-directional communication between client / server
+
+`npm run dev`
 
 **Tutorial by Traversy Media**
 https://www.youtube.com/watch?v=jD7FnbI76Hg&ab_channel=TraversyMedia
@@ -159,3 +161,88 @@ socket.on("message", data => {
 ```
 
 It works!!!
+
+### Automatically Scroll to Latest Message and Clear Input field after submission
+
+In `main.js`
+`chatMessages.scrollTop = chatMessages.scrollHeight;`
+
+```
+  // Clear input field after submission
+  e.target.elements.msg.value='';
+
+  // Put typing cursor into input field
+  e.target.elements.msg.focus();
+  ```
+
+### Format Message
+
+Create `utils/` folder. In that, create `messages.js`
+In that take in username and text strings and return an **object** with username, text, and time.
+
+In `server.js`, import that
+
+Now instead of sending a string, we want to send formatMessage
+```
+// Welcome current user. Send message only to single user
+socket.emit("message", formatMessage(botName, "Welcome to the chat!"))
+```
+
+
+In `main.js`,
+Go to `outputMessage` and adjust for the input being an object now instead of a string
+
+`${message.text}`, `${message.time}`, `${message.username}`
+
+
+### Implement Users & Rooms
+We have query strings that we need to grab
+We're going to use the `qs library` to grab these query strings
+
+Above our socket.io library script in `chat.html`, put
+
+```
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/qs/6.9.2/qs.min.js"
+    integrity="sha256-TDxXjkAUay70ae/QJBEpGKkpVslXaHHayklIVglFRT4="
+    crossorigin="anonymous"
+  ></script>
+```
+
+In `main.js`,
+```
+// Get username and room from query string
+const { username, room } = Qs.parse(location.search, {
+  ignoreQueryPrefix: true
+})
+
+console.log(username, room)
+```
+
+Now let's emit those values to the server in an event named joinRoom
+```
+// Join chatroom
+socket.emit('joinRoom', { username, room })
+```
+
+Now catch this on the server `server.js`
+Catch the event
+Create `utils/users.js` with userJoin, getCurentUser
+
+```
+    // Create User and Join the User to a room
+    const user = userJoin(socket.id, username, room);
+    socket.join();
+```
+
+When we broadcast, it should be room-specific
+`socket.broadcast.to(user.room).emit(...)`
+
+Each message should be labeled with the author's username
+```
+  // Listen for chatMessage from Client
+  socket.on("chatMessage", (msg) => {
+    const user = getCurrentUser(socket.id);
+    io.emit("message", formatMessage(`${user.username}`, msg));
+  });
+```
